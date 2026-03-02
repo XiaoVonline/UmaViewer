@@ -267,22 +267,121 @@ public class ModelExporter
     private static Bone[] ReadBones(List<Transform> bonelist)
     {
         List<Bone> pmxbones = new List<Bone>();
+        HashSet<string> use_local_axis = new HashSet<string> 
+        {
+            "Ear_01_L", "Ear_02_L", "Ear_03_L", "Ear_01_R", "Ear_02_R", "Ear_03_R", 
+            "ShoulderRoll_L", "Arm_L", "Elbow_L", "ArmRoll_L", "Wrist_L", "ShoulderRoll_R", "Arm_R", "Elbow_R", "ArmRoll_R", "Wrist_R",
+            "Index_01_L", "Middle_01_L", "Pinky_01_L", "Ring_01_L", "Thumb_01_L", "Index_01_R", "Middle_01_R", "Pinky_01_R", "Ring_01_R", "Thumb_01_R",
+            "Index_02_L", "Middle_02_L", "Pinky_02_L", "Ring_02_L", "Thumb_02_L", "Index_02_R", "Middle_02_R", "Pinky_02_R", "Ring_02_R", "Thumb_02_R",
+            "Index_03_L", "Middle_03_L", "Pinky_03_L", "Ring_03_L", "Thumb_03_L", "Index_03_R", "Middle_03_R", "Pinky_03_R", "Ring_03_R", "Thumb_03_R",
+        };
+        HashSet<string> endbones = new HashSet<string> 
+        {
+            "Ear_03_L", "Ear_03_R", "Index_03_L", "Middle_03_L", "Pinky_03_L", "Ring_03_L", "Thumb_03_L", "Index_03_R", "Middle_03_R", "Pinky_03_R", "Ring_03_R", "Thumb_03_R"
+        };
         foreach (var bone in bonelist)
         {
             Bone pmxbone = new Bone();
             pmxbone.Name = pmxbone.NameEn = bone.name;
-            pmxbone.Position = bone.position;
+            pmxbone.Position = bone.position; 
             pmxbone.ParentIndex = bonelist.IndexOf(bone.parent);
             pmxbone.TransformLevel = 0;
             pmxbone.Visible = true;
             pmxbone.Movable = true;
             pmxbone.Rotatable = true;
             pmxbone.Controllable = true;
+            if (use_local_axis.Contains(bone.name))
+            {
+                pmxbone.UseLocalAxis = true; 
+                pmxbone.LocalAxisVal.AxisX = bone.right * (bone.name == "ShoulderRoll_R" || bone.name == "Arm_R" || bone.name == "Elbow_R" || bone.name == "ArmRoll_R" || bone.name == "Wrist_R" ? 1 : -1);
+                pmxbone.LocalAxisVal.AxisZ = bone.forward;
+            }
             pmxbone.ChildBoneVal = new Bone.ChildBone()
             {
                 ChildUseId = true,
                 Index = (bone.childCount > 0 ? bonelist.IndexOf(bone.GetChild(0)) : -1)
             };
+            if (endbones.Contains(bone.name))
+            {
+                float boneLength = Vector3.Distance(bone.parent.position, bone.position);
+                pmxbone.ChildBoneVal.ChildUseId = false;
+                pmxbone.ChildBoneVal.Offset = bone.up * boneLength;
+                if (!bonelist.Exists(t => t.name == "UpBody_Ctrl"))
+                {
+                    if (bone.name == "Thumb_03_L" || bone.name == "Thumb_03_R" || bone.name == "Ear_03_L" || bone.name == "Ear_03_R")
+                        pmxbone.ChildBoneVal.Offset = bone.up * boneLength * 0.5f;
+                }
+            }
+            else if (bone.name == "Sp_Hi_Tail0_B_04" )
+            {
+                float boneLength = Vector3.Distance(bone.parent.position, bone.position);
+                pmxbone.ChildBoneVal.ChildUseId = false;
+                pmxbone.ChildBoneVal.Offset = bone.forward * boneLength;
+            }
+            else if (bone.name == "Sp_Hi_Tail0_B_02")
+            {
+                if (!bonelist.Exists(t => t.name == "UpBody_Ctrl"))
+                {
+                    float boneLength = Vector3.Distance(bone.parent.position, bone.position);
+                    pmxbone.ChildBoneVal.ChildUseId = false;
+                    pmxbone.ChildBoneVal.Offset = bone.forward * boneLength * 0.7f;
+                }
+            }
+            else if (bone.name == "Wrist_L" || bone.name == "Wrist_R")
+            {
+                Transform targrtBone = bonelist.Find(t => t.name == (bone.name == "Wrist_L" ? "ArmRoll_L" : "ArmRoll_R"));
+                if (targrtBone != null)
+                {
+                    float boneLength = Vector3.Distance(targrtBone.position, bone.position);
+                    pmxbone.ChildBoneVal.ChildUseId = false;
+                    pmxbone.ChildBoneVal.Offset = bone.up * (bone.name == "Wrist_R" ? -boneLength : boneLength);
+                }
+            }
+            else if (bone.name == "ArmRoll_L" || bone.name == "ArmRoll_R")
+            {
+                Transform targrtBone = bone.parent?.Find(bone.name == "ArmRoll_L" ? "Wrist_L" : "Wrist_R"); 
+                if (targrtBone != null)
+                    pmxbone.ChildBoneVal.Index = bonelist.IndexOf(targrtBone);
+            }
+            else if (bone.name == "Elbow_L" || bone.name == "Elbow_R")
+            {
+                if (!bonelist.Exists(t => t.name == "UpBody_Ctrl"))
+                {
+                    Transform targrtBone = bonelist.Find(t => t.name == (bone.name == "Elbow_L" ? "Wrist_L" : "Wrist_R")); 
+                    if (targrtBone != null)
+                        pmxbone.ChildBoneVal.Index = bonelist.IndexOf(targrtBone);
+                }
+            }
+            else if (bone.name == "ShoulderRoll_L" || bone.name == "ShoulderRoll_R")
+            {
+                pmxbone.ChildBoneVal.ChildUseId = false; 
+                pmxbone.ChildBoneVal.Offset =  (bonelist[pmxbones[pmxbone.ParentIndex].ChildBoneVal.Index].position - bone.parent.position) * 0.4f;
+            }
+            else if (bone.name == "Shoulder_L" || bone.name == "Shoulder_R")
+            {
+                pmxbone.ChildBoneVal.ChildUseId = false; 
+            }
+            else if (bone.name == "Hip")
+            {
+                int targetIndex = bonelist.FindIndex(t => t.name == "UpBody_Ctrl");
+                if (targetIndex == -1)
+                    targetIndex = bonelist.FindIndex(t => t.name == "Waist");
+                if (targetIndex != -1)
+                    pmxbone.ChildBoneVal.Index = targetIndex;
+            }
+            else if (bone.name == "Waist")
+            {
+                int targetIndex = bonelist.FindIndex(t => t.name == "Spine");
+                if (targetIndex == -1)
+                    targetIndex = bonelist.FindIndex(t => t.name == "Chest");
+                if (targetIndex != -1)
+                    pmxbone.ChildBoneVal.Index = targetIndex;
+            }
+            else if (bone.name == "Position")
+            {
+                pmxbone.ChildBoneVal.ChildUseId = false;
+                pmxbone.ChildBoneVal.Offset = bone.up * (bonelist.Exists(t => t.name == "UpBody_Ctrl") ? 1 : 0.1f);
+            }
             pmxbones.Add(pmxbone);
         }
         return pmxbones.ToArray();

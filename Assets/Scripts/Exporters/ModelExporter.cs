@@ -274,6 +274,7 @@ public class ModelExporter
             "Index_01_L", "Middle_01_L", "Pinky_01_L", "Ring_01_L", "Thumb_01_L", "Index_01_R", "Middle_01_R", "Pinky_01_R", "Ring_01_R", "Thumb_01_R",
             "Index_02_L", "Middle_02_L", "Pinky_02_L", "Ring_02_L", "Thumb_02_L", "Index_02_R", "Middle_02_R", "Pinky_02_R", "Ring_02_R", "Thumb_02_R",
             "Index_03_L", "Middle_03_L", "Pinky_03_L", "Ring_03_L", "Thumb_03_L", "Index_03_R", "Middle_03_R", "Pinky_03_R", "Ring_03_R", "Thumb_03_R",
+            "Ankle_L", "Toe_offset_L", "Toe_L", "Ankle_R", "Toe_offset_R", "Toe_R"
         };
         HashSet<string> endbones = new HashSet<string> 
         {
@@ -312,6 +313,25 @@ public class ModelExporter
                         pmxbone.ChildBoneVal.Offset = bone.up * boneLength * 0.5f;
                 }
             }
+            else if (bone.name == "Toe_offset_L" || bone.name == "Toe_L" || bone.name == "Toe_offset_R" || bone.name == "Toe_R")
+            {
+                pmxbone.ChildBoneVal.ChildUseId = false;
+                pmxbone.ChildBoneVal.Offset = bone.up * 0.06f;
+            }
+            else if (bone.name == "Ankle_L" || bone.name == "Ankle_R")
+            {
+                pmxbone.ChildBoneVal.ChildUseId = false;
+                Transform targrtBone = bonelist.Find(t => t.name == (bone.name == "Ankle_L" ? "Toe_L" : "Toe_R"));
+                if (targrtBone != null)
+                {
+                    float boneLength = Vector3.Distance(targrtBone.parent.position, targrtBone.position);
+                    pmxbone.ChildBoneVal.Offset = bone.up * boneLength;
+                }
+                else
+                {
+                    pmxbone.ChildBoneVal.Offset = bone.up * 0.03f;
+                }
+            }
             else if (bone.name == "Sp_Hi_Tail0_B_04" )
             {
                 float boneLength = Vector3.Distance(bone.parent.position, bone.position);
@@ -329,12 +349,16 @@ public class ModelExporter
             }
             else if (bone.name == "Wrist_L" || bone.name == "Wrist_R")
             {
+                pmxbone.ChildBoneVal.ChildUseId = false;
                 Transform targrtBone = bonelist.Find(t => t.name == (bone.name == "Wrist_L" ? "ArmRoll_L" : "ArmRoll_R"));
                 if (targrtBone != null)
                 {
                     float boneLength = Vector3.Distance(targrtBone.position, bone.position);
-                    pmxbone.ChildBoneVal.ChildUseId = false;
                     pmxbone.ChildBoneVal.Offset = bone.up * (bone.name == "Wrist_R" ? -boneLength : boneLength);
+                }
+                else
+                {
+                    pmxbone.ChildBoneVal.Offset = bone.up * (bone.name == "Wrist_R" ? -0.05f : 0.05f);
                 }
             }
             else if (bone.name == "ArmRoll_L" || bone.name == "ArmRoll_R")
@@ -356,10 +380,6 @@ public class ModelExporter
             {
                 pmxbone.ChildBoneVal.ChildUseId = false; 
                 pmxbone.ChildBoneVal.Offset =  (bonelist[pmxbones[pmxbone.ParentIndex].ChildBoneVal.Index].position - bone.parent.position) * 0.4f;
-            }
-            else if (bone.name == "Shoulder_L" || bone.name == "Shoulder_R")
-            {
-                pmxbone.ChildBoneVal.ChildUseId = false; 
             }
             else if (bone.name == "Hip")
             {
